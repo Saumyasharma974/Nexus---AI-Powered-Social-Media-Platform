@@ -115,6 +115,15 @@ const CallUI = ({ socket, activeChatUser, user }) => {
         }
     };
 
+    // Global cleanup for streams on unmount
+    useEffect(() => {
+        return () => {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, []);
+
     // ─── START A CALL ───
     const initiateCall = async (video) => {
         if (!activeChatUser) return;
@@ -126,7 +135,10 @@ const CallUI = ({ socket, activeChatUser, user }) => {
         if (!stream) return endCallLocally();
 
         const peer = new RTCPeerConnection({
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
+            ]
         });
 
         connectionRef.current = peer;
@@ -138,7 +150,6 @@ const CallUI = ({ socket, activeChatUser, user }) => {
         peer.ontrack = (event) => {
             if (userVideo.current && event.streams[0]) {
                 userVideo.current.srcObject = event.streams[0];
-                userVideo.current.play().catch(err => console.log('Autoplay prevented:', err));
             }
         };
 
@@ -177,13 +188,16 @@ const CallUI = ({ socket, activeChatUser, user }) => {
         setReceivingCall(false);
         setIsVideoCall(callerInfo.isVideoCall);
         setCallState('connected');
-        iceQueueRef.current = []; // Clear queue for new call
+        // Do NOT clear iceQueueRef.current here; we process it after setting RemoteDescription
 
         const stream = await getMediaStream(callerInfo.isVideoCall);
         if (!stream) return endCallLocally();
 
         const peer = new RTCPeerConnection({
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
+            ]
         });
 
         connectionRef.current = peer;
@@ -195,7 +209,6 @@ const CallUI = ({ socket, activeChatUser, user }) => {
         peer.ontrack = (event) => {
             if (userVideo.current && event.streams[0]) {
                 userVideo.current.srcObject = event.streams[0];
-                userVideo.current.play().catch(err => console.log('Autoplay prevented:', err));
             }
         };
 
@@ -234,7 +247,13 @@ const CallUI = ({ socket, activeChatUser, user }) => {
             streamRef.current.getTracks().forEach(t => t.stop());
             streamRef.current = null;
         }
-        socket.off('callAccepted');
+    };
+
+    const rejectCall = () => {
+        if (callerInfo?.from) {
+            socket.emit('endCall', { to: callerInfo.from });
+        }
+        endCallLocally();
     };
 
     const leaveCall = () => {
@@ -298,7 +317,7 @@ const CallUI = ({ socket, activeChatUser, user }) => {
                                 <p className="text-[10px] md:text-xs text-zinc-400 truncate">Incoming {callerInfo?.isVideoCall ? 'video' : 'voice'} call...</p>
                             </div>
                             <div className="flex gap-2 ml-auto shrink-0">
-                                <button onClick={endCallLocally} className="p-2 md:p-3 bg-red-500 hover:bg-red-600 rounded-full text-white">
+                                <button onClick={rejectCall} className="p-2 md:p-3 bg-red-500 hover:bg-red-600 rounded-full text-white">
                                     <PhoneOff size={16} className="md:w-[18px] md:h-[18px]" />
                                 </button>
                                 <button onClick={acceptCall} className="p-2 md:p-3 bg-green-500 hover:bg-green-600 rounded-full text-white">
@@ -332,10 +351,10 @@ const CallUI = ({ socket, activeChatUser, user }) => {
                         ) : (
                             <div className="flex flex-col items-center gap-6">
                                 <div className="w-32 h-32 rounded-full border-4 border-indigo-500/50 bg-[#1a1a2e] flex items-center justify-center text-4xl uppercase font-bold animate-pulse">
-                                    {callState === 'calling' ? activeChatUser?.name?.charAt(0) : callerInfo?.name?.charAt(0) || activeChatUser?.name?.charAt(0)}
+                                    {callState === 'calling' ? (activeChatUser?.name?.charAt(0) || '?') : (callerInfo?.name?.charAt(0) || activeChatUser?.name?.charAt(0) || '?')}
                                 </div>
                                 <div className="text-center">
-                                    <h2 className="text-2xl font-bold">{callState === 'calling' ? activeChatUser?.name : callerInfo?.name || activeChatUser?.name}</h2>
+                                    <h2 className="text-2xl font-bold">{callState === 'calling' ? activeChatUser?.name : (callerInfo?.name || activeChatUser?.name)}</h2>
                                     <p className="text-zinc-400 mt-1">
                                         {callState === 'calling' ? 'Calling...' : formatTime(callDuration)}
                                     </p>

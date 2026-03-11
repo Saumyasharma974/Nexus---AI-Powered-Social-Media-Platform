@@ -21,9 +21,11 @@ io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
 
     const userId = socket.handshake.query.userId;
-    if (userId && userId !== 'undefined') {
-        userSocketMap[userId] = socket.id;
+    if (!userId || userId === 'undefined') {
+        socket.disconnect();
+        return;
     }
+    userSocketMap[userId] = socket.id;
 
     // Broadcast updated list of online user IDs to everyone
     io.emit('getOnlineUsers', Object.keys(userSocketMap));
