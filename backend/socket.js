@@ -52,8 +52,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('answerCall', ({ to, signal }) => {
-        // 'to' is now the precise socket.id string of the caller, not a userId
-        io.to(to).emit('callAccepted', signal);
+        // 'to' is the USER ID of the caller
+        const receiverSocketId = getReceiverSocketId(to);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('callAccepted', signal);
+        }
     });
 
     socket.on('endCall', ({ to }) => {

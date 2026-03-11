@@ -179,7 +179,7 @@ const CallUI = ({ socket, activeChatUser, user }) => {
 
         peer.onicecandidate = (event) => {
             if (event.candidate) {
-                socket.emit('answerCall', { to: callerInfo.fromSocket, signal: { type: 'candidate', candidate: event.candidate } });
+                socket.emit('answerCall', { to: callerInfo.from, signal: { type: 'candidate', candidate: event.candidate } });
             }
         };
 
@@ -193,7 +193,7 @@ const CallUI = ({ socket, activeChatUser, user }) => {
             const answer = await peer.createAnswer();
             await peer.setLocalDescription(answer);
 
-            socket.emit('answerCall', { to: callerInfo.fromSocket, signal: answer });
+            socket.emit('answerCall', { to: callerInfo.from, signal: answer });
         }
     };
 
@@ -264,21 +264,21 @@ const CallUI = ({ socket, activeChatUser, user }) => {
                         initial={{ opacity: 0, y: -50 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        className="pointer-events-auto absolute top-16 left-1/2 -translate-x-1/2 bg-[#1a1a2e] border border-white/20 p-4 rounded-2xl shadow-2xl flex items-center gap-4"
+                        className="pointer-events-auto absolute top-16 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-[#1a1a2e] border border-white/20 p-3 md:p-4 rounded-2xl shadow-2xl flex items-center gap-2 md:gap-4 z-50"
                     >
-                        <div className="w-12 h-12 bg-indigo-500 rounded-full flex items-center justify-center font-bold text-xl uppercase">
+                        <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-500 rounded-full flex items-center justify-center font-bold text-lg md:text-xl uppercase shrink-0">
                             {callerInfo?.name?.charAt(0)}
                         </div>
-                        <div>
-                            <h3 className="font-bold text-white">{callerInfo?.name}</h3>
-                            <p className="text-xs text-zinc-400">Incoming {callerInfo?.isVideoCall ? 'video' : 'voice'} call...</p>
+                        <div className="flex-1 overflow-hidden">
+                            <h3 className="font-bold text-white text-sm md:text-base truncate">{callerInfo?.name}</h3>
+                            <p className="text-[10px] md:text-xs text-zinc-400 truncate">Incoming {callerInfo?.isVideoCall ? 'video' : 'voice'} call...</p>
                         </div>
-                        <div className="flex gap-2 ml-4">
-                            <button onClick={endCallLocally} className="p-3 bg-red-500 hover:bg-red-600 rounded-full text-white">
-                                <PhoneOff size={18} />
+                        <div className="flex gap-2 ml-auto shrink-0">
+                            <button onClick={endCallLocally} className="p-2 md:p-3 bg-red-500 hover:bg-red-600 rounded-full text-white">
+                                <PhoneOff size={16} className="md:w-[18px] md:h-[18px]" />
                             </button>
-                            <button onClick={acceptCall} className="p-3 bg-green-500 hover:bg-green-600 rounded-full text-white">
-                                {callerInfo?.isVideoCall ? <VideoIcon size={18} /> : <Phone size={18} />}
+                            <button onClick={acceptCall} className="p-2 md:p-3 bg-green-500 hover:bg-green-600 rounded-full text-white">
+                                {callerInfo?.isVideoCall ? <VideoIcon size={16} className="md:w-[18px] md:h-[18px]" /> : <Phone size={16} className="md:w-[18px] md:h-[18px]" />}
                             </button>
                         </div>
                     </motion.div>
