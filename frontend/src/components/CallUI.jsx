@@ -7,6 +7,7 @@ const CallUI = ({ socket, activeChatUser, user }) => {
     const [receivingCall, setReceivingCall] = useState(false);
     const [callerInfo, setCallerInfo] = useState(null); // { from, name, signal, isVideo, fromSocket }
     const [isVideoCall, setIsVideoCall] = useState(false);
+    const [callDuration, setCallDuration] = useState(0);
 
     const [micEnabled, setMicEnabled] = useState(true);
     const [camEnabled, setCamEnabled] = useState(true);
@@ -76,6 +77,25 @@ const CallUI = ({ socket, activeChatUser, user }) => {
         };
     }, [socket]);
 
+    // Timer logic
+    useEffect(() => {
+        let interval;
+        if (callState === 'connected') {
+            interval = setInterval(() => {
+                setCallDuration((prev) => prev + 1);
+            }, 1000);
+        } else {
+            setCallDuration(0);
+        }
+        return () => clearInterval(interval);
+    }, [callState]);
+
+    const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const s = (seconds % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    };
+
     const getMediaStream = async (video) => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
@@ -118,6 +138,7 @@ const CallUI = ({ socket, activeChatUser, user }) => {
         peer.ontrack = (event) => {
             if (userVideo.current && event.streams[0]) {
                 userVideo.current.srcObject = event.streams[0];
+                userVideo.current.play().catch(err => console.log('Autoplay prevented:', err));
             }
         };
 
@@ -174,6 +195,7 @@ const CallUI = ({ socket, activeChatUser, user }) => {
         peer.ontrack = (event) => {
             if (userVideo.current && event.streams[0]) {
                 userVideo.current.srcObject = event.streams[0];
+                userVideo.current.play().catch(err => console.log('Autoplay prevented:', err));
             }
         };
 
@@ -202,6 +224,7 @@ const CallUI = ({ socket, activeChatUser, user }) => {
         setCallState('idle');
         setReceivingCall(false);
         setCallerInfo(null);
+        setCallDuration(0);
 
         if (connectionRef.current) {
             connectionRef.current.close();
@@ -260,28 +283,30 @@ const CallUI = ({ socket, activeChatUser, user }) => {
             {/* Incoming Call Popup */}
             <AnimatePresence>
                 {receivingCall && callState === 'idle' && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -50 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="pointer-events-auto absolute top-16 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-[#1a1a2e] border border-white/20 p-3 md:p-4 rounded-2xl shadow-2xl flex items-center gap-2 md:gap-4 z-50"
-                    >
-                        <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-500 rounded-full flex items-center justify-center font-bold text-lg md:text-xl uppercase shrink-0">
-                            {callerInfo?.name?.charAt(0)}
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <h3 className="font-bold text-white text-sm md:text-base truncate">{callerInfo?.name}</h3>
-                            <p className="text-[10px] md:text-xs text-zinc-400 truncate">Incoming {callerInfo?.isVideoCall ? 'video' : 'voice'} call...</p>
-                        </div>
-                        <div className="flex gap-2 ml-auto shrink-0">
-                            <button onClick={endCallLocally} className="p-2 md:p-3 bg-red-500 hover:bg-red-600 rounded-full text-white">
-                                <PhoneOff size={16} className="md:w-[18px] md:h-[18px]" />
-                            </button>
-                            <button onClick={acceptCall} className="p-2 md:p-3 bg-green-500 hover:bg-green-600 rounded-full text-white">
-                                {callerInfo?.isVideoCall ? <VideoIcon size={16} className="md:w-[18px] md:h-[18px]" /> : <Phone size={16} className="md:w-[18px] md:h-[18px]" />}
-                            </button>
-                        </div>
-                    </motion.div>
+                    <div className="absolute top-16 left-0 right-0 flex justify-center z-50 pointer-events-none">
+                        <motion.div
+                            initial={{ opacity: 0, y: -50 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="pointer-events-auto w-[90%] max-w-sm bg-[#1a1a2e] border border-white/20 p-3 md:p-4 rounded-2xl shadow-2xl flex items-center gap-2 md:gap-4"
+                        >
+                            <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-500 rounded-full flex items-center justify-center font-bold text-lg md:text-xl uppercase shrink-0">
+                                {callerInfo?.name?.charAt(0)}
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <h3 className="font-bold text-white text-sm md:text-base truncate">{callerInfo?.name}</h3>
+                                <p className="text-[10px] md:text-xs text-zinc-400 truncate">Incoming {callerInfo?.isVideoCall ? 'video' : 'voice'} call...</p>
+                            </div>
+                            <div className="flex gap-2 ml-auto shrink-0">
+                                <button onClick={endCallLocally} className="p-2 md:p-3 bg-red-500 hover:bg-red-600 rounded-full text-white">
+                                    <PhoneOff size={16} className="md:w-[18px] md:h-[18px]" />
+                                </button>
+                                <button onClick={acceptCall} className="p-2 md:p-3 bg-green-500 hover:bg-green-600 rounded-full text-white">
+                                    {callerInfo?.isVideoCall ? <VideoIcon size={16} className="md:w-[18px] md:h-[18px]" /> : <Phone size={16} className="md:w-[18px] md:h-[18px]" />}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
 
@@ -312,12 +337,12 @@ const CallUI = ({ socket, activeChatUser, user }) => {
                                 <div className="text-center">
                                     <h2 className="text-2xl font-bold">{callState === 'calling' ? activeChatUser?.name : callerInfo?.name || activeChatUser?.name}</h2>
                                     <p className="text-zinc-400 mt-1">
-                                        {callState === 'calling' ? 'Calling...' : '00:00'}
+                                        {callState === 'calling' ? 'Calling...' : formatTime(callDuration)}
                                     </p>
                                 </div>
-                                {/* Hidden audio elements for voice call */}
-                                <video playsInline ref={myVideo} autoPlay muted className="hidden" />
-                                <video playsInline ref={userVideo} autoPlay className="hidden" />
+                                {/* Use audio tags for voice calls to prevent browser engine suspension of hidden videos */}
+                                <audio ref={myVideo} autoPlay muted className="hidden" />
+                                <audio ref={userVideo} autoPlay className="hidden" />
                             </div>
                         )}
 
