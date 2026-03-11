@@ -29,7 +29,7 @@ const Messages = () => {
     // Connect Socket
     useEffect(() => {
         if (user) {
-            const newSocket = io('http://localhost:5000', {
+            const newSocket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
                 query: { userId: user._id },
             });
             setSocket(newSocket);
